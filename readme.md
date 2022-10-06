@@ -7,7 +7,7 @@ This module contains the client to connect to source programmatically.
 Import the module: 
 
 ```bash
-$ go get southwinds.dev/source/client
+$ go get southwinds.dev/source_client
 ```
 
 ### Saving Configurations
@@ -36,8 +36,11 @@ err = c.SetItem("OPT_TEST_KEY", "OPTIONS_TYPE", ClientOptions{
 // create a new client
 c := New("http://127.0.0.1:8999", "admin", "admin", nil)
 
-// get an item by key
+// get an item by key, the prototype must be a pointer
 item := c.Load("OPT_TEST_KEY", new(ClientOptions))
+
+// get the typed item, the type assertion must be made against a pointer type
+typeItem := item.(*ClientOptions)
 ```
 
 For more examples [see here](client_test.go).

@@ -17,6 +17,7 @@ import (
 	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -99,6 +100,9 @@ func (c *Client) SetType(key string, obj any) error {
 
 // Save the configuration item under the unique key using the validation defined by itemType
 func (c *Client) Save(key, itemType string, item any) error {
+	if reflect.ValueOf(item).Kind() == reflect.Ptr {
+		return fmt.Errorf("iten argument passed to Save() must not be a pointer")
+	}
 	if len(itemType) == 0 {
 		return fmt.Errorf("item type is required to validate the item data")
 	}
@@ -161,6 +165,9 @@ func (c *Client) LoadRaw(itemKey string) (*I, error) {
 // Load the typed configuration item identified by key using the specified item prototype
 // The prototype is an empty instance of the type to get
 func (c *Client) Load(itemKey string, prototype any) (any, error) {
+	if reflect.ValueOf(prototype).Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("prototype argument passed to Load() must be a pointer")
+	}
 	i, err := c.LoadRaw(itemKey)
 	if err != nil {
 		return nil, err
@@ -234,6 +241,80 @@ func (c *Client) LoadItemsByType(factory func() any, itemType string) ([]any, er
 		return nil, err
 	}
 	return items.Typed(factory)
+}
+
+func (c *Client) PopOldestRaw(itemType string) (*I, error) {
+	request, err := http.NewRequest(http.MethodDelete, c.url("/item/pop/oldest/%s", itemType), nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", c.token)
+	request.Header.Set("User-Agent", UserAgent)
+	resp, reqErr := c.Do(request)
+	if reqErr != nil {
+		return nil, reqErr
+	}
+	if resp.StatusCode > 299 {
+		return nil, fmt.Errorf("cannot get item, source server responded with: %s", resp.Status)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("cannot read response body: %s", readErr)
+	}
+	item := new(I)
+	err = json.Unmarshal(body, item)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal response body: %s", err)
+	}
+	return item, nil
+}
+
+func (c *Client) PopOldest(itemType string, prototype any) (any, error) {
+	if reflect.ValueOf(prototype).Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("prototype argument passed to PopOldest() must be a pointer")
+	}
+	i, err := c.PopOldestRaw(itemType)
+	if err != nil {
+		return nil, err
+	}
+	return i.Typed(prototype)
+}
+
+func (c *Client) PopNewestRaw(itemType string) (*I, error) {
+	request, err := http.NewRequest(http.MethodDelete, c.url("/item/pop/newest/%s", itemType), nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", c.token)
+	request.Header.Set("User-Agent", UserAgent)
+	resp, reqErr := c.Do(request)
+	if reqErr != nil {
+		return nil, reqErr
+	}
+	if resp.StatusCode > 299 {
+		return nil, fmt.Errorf("cannot get item, source server responded with: %s", resp.Status)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("cannot read response body: %s", readErr)
+	}
+	item := new(I)
+	err = json.Unmarshal(body, item)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal response body: %s", err)
+	}
+	return item, nil
+}
+
+func (c *Client) PopNewest(itemType string, prototype any) (any, error) {
+	if reflect.ValueOf(prototype).Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("prototype argument passed to PopNewest() must be a pointer")
+	}
+	i, err := c.PopOldestRaw(itemType)
+	if err != nil {
+		return nil, err
+	}
+	return i.Typed(prototype)
 }
 
 func (c *Client) LoadChildrenRaw(itemKey string) (IL, error) {

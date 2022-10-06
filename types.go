@@ -10,6 +10,8 @@ package src
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -45,6 +47,9 @@ func (items IL) Typed(factory func() any) ([]any, error) {
 
 func convert(i I, factory func() any) (any, error) {
 	t := factory()
+	if reflect.ValueOf(t).Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("factory argument return type must be a pointer")
+	}
 	err := json.Unmarshal(i.Value, t)
 	return t, err
 }
