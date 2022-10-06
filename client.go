@@ -254,6 +254,9 @@ func (c *Client) PopOldestRaw(itemType string) (*I, error) {
 	if reqErr != nil {
 		return nil, reqErr
 	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
 	if resp.StatusCode > 299 {
 		return nil, fmt.Errorf("cannot get item, source server responded with: %s", resp.Status)
 	}
@@ -277,6 +280,9 @@ func (c *Client) PopOldest(itemType string, prototype any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if i == nil {
+		return i, nil
+	}
 	return i.Typed(prototype)
 }
 
@@ -290,6 +296,9 @@ func (c *Client) PopNewestRaw(itemType string) (*I, error) {
 	resp, reqErr := c.Do(request)
 	if reqErr != nil {
 		return nil, reqErr
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
 	}
 	if resp.StatusCode > 299 {
 		return nil, fmt.Errorf("cannot get item, source server responded with: %s", resp.Status)
@@ -313,6 +322,9 @@ func (c *Client) PopNewest(itemType string, prototype any) (any, error) {
 	i, err := c.PopOldestRaw(itemType)
 	if err != nil {
 		return nil, err
+	}
+	if i == nil {
+		return i, nil
 	}
 	return i.Typed(prototype)
 }
