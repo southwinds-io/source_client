@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
@@ -37,7 +38,7 @@ func defaultOptions() *ClientOptions {
 }
 
 type Client struct {
-	*http.Client
+	*retryablehttp.Client
 	host, token string
 }
 
@@ -45,18 +46,22 @@ func New(host, user, pwd string, opts *ClientOptions) Client {
 	if opts == nil {
 		opts = defaultOptions()
 	}
-	return Client{ // the http client instance
-		host:  host,
-		token: basicToken(user, pwd),
-		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: opts.InsecureSkipVerify,
-				},
+	c := retryablehttp.NewClient()
+	c.RetryMax = 20
+	c.HTTPClient = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: opts.InsecureSkipVerify,
 			},
-			// set the client timeout period
-			Timeout: opts.Timeout,
-		}}
+		},
+		// set the client timeout period
+		Timeout: opts.Timeout,
+	}
+	return Client{ // the http client instance
+		host:   host,
+		token:  basicToken(user, pwd),
+		Client: c,
+	}
 }
 
 func (c *Client) SetType(key string, obj any) error {
@@ -82,7 +87,7 @@ func (c *Client) SetType(key string, obj any) error {
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest(http.MethodPut, c.url("/type"), bytes.NewReader(infoBytes))
+	request, err := retryablehttp.NewRequest(http.MethodPut, c.url("/type"), bytes.NewReader(infoBytes))
 	if err != nil {
 		return err
 	}
@@ -116,7 +121,7 @@ func (c *Client) Save(key, itemType string, item any) error {
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequest(http.MethodPut, c.url("/item/%s", key), bytes.NewReader(objBytes))
+	request, err := retryablehttp.NewRequest(http.MethodPut, c.url("/item/%s", key), bytes.NewReader(objBytes))
 	if err != nil {
 		return err
 	}
@@ -137,7 +142,7 @@ func (c *Client) Save(key, itemType string, item any) error {
 
 // LoadRaw the raw configuration item identified by key
 func (c *Client) LoadRaw(itemKey string) (*I, error) {
-	request, err := http.NewRequest(http.MethodGet, c.url("/item/%s", itemKey), nil)
+	request, err := retryablehttp.NewRequest(http.MethodGet, c.url("/item/%s", itemKey), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +181,7 @@ func (c *Client) Load(itemKey string, prototype any) (any, error) {
 }
 
 func (c *Client) LoadItemsByTagRaw(tags ...string) (IL, error) {
-	request, err := http.NewRequest(http.MethodGet, c.url("/item/tag/%s", strings.Join(tags, "|")), nil)
+	request, err := retryablehttp.NewRequest(http.MethodGet, c.url("/item/tag/%s", strings.Join(tags, "|")), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +215,7 @@ func (c *Client) LoadItemsByTag(factory func() any, tags ...string) ([]any, erro
 }
 
 func (c *Client) LoadItemsByTypeRaw(itemType string) (IL, error) {
-	request, err := http.NewRequest(http.MethodGet, c.url("/item/type/%s", itemType), nil)
+	request, err := retryablehttp.NewRequest(http.MethodGet, c.url("/item/type/%s", itemType), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +249,7 @@ func (c *Client) LoadItemsByType(factory func() any, itemType string) ([]any, er
 }
 
 func (c *Client) PopOldestRaw(itemType string) (*I, error) {
-	request, err := http.NewRequest(http.MethodDelete, c.url("/item/pop/oldest/%s", itemType), nil)
+	request, err := retryablehttp.NewRequest(http.MethodDelete, c.url("/item/pop/oldest/%s", itemType), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +292,7 @@ func (c *Client) PopOldest(itemType string, prototype any) (any, error) {
 }
 
 func (c *Client) PopNewestRaw(itemType string) (*I, error) {
-	request, err := http.NewRequest(http.MethodDelete, c.url("/item/pop/newest/%s", itemType), nil)
+	request, err := retryablehttp.NewRequest(http.MethodDelete, c.url("/item/pop/newest/%s", itemType), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +335,7 @@ func (c *Client) PopNewest(itemType string, prototype any) (any, error) {
 }
 
 func (c *Client) LoadChildrenRaw(itemKey string) (IL, error) {
-	request, err := http.NewRequest(http.MethodGet, c.url("/item/%s/children", itemKey), nil)
+	request, err := retryablehttp.NewRequest(http.MethodGet, c.url("/item/%s/children", itemKey), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +369,7 @@ func (c *Client) LoadChildren(factory func() any, itemKey string) ([]any, error)
 }
 
 func (c *Client) LoadParentsRaw(itemKey string) (IL, error) {
-	request, err := http.NewRequest(http.MethodGet, c.url("/item/%s/parents", itemKey), nil)
+	request, err := retryablehttp.NewRequest(http.MethodGet, c.url("/item/%s/parents", itemKey), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +413,7 @@ func (c *Client) Tag(itemKey, tagName, tagValue string) error {
 	} else {
 		return fmt.Errorf("a tag name is required")
 	}
-	request, err := http.NewRequest(http.MethodPut, c.url("/item/%s/tag/%s", itemKey, tag), nil)
+	request, err := retryablehttp.NewRequest(http.MethodPut, c.url("/item/%s/tag/%s", itemKey, tag), nil)
 	if err != nil {
 		return err
 	}
@@ -428,7 +433,7 @@ func (c *Client) Untag(itemKey, tagName string) error {
 	if len(tagName) == 0 {
 		return fmt.Errorf("a tag name is required")
 	}
-	request, err := http.NewRequest(http.MethodDelete, c.url("/item/%s/tag/%s", itemKey, tagName), nil)
+	request, err := retryablehttp.NewRequest(http.MethodDelete, c.url("/item/%s/tag/%s", itemKey, tagName), nil)
 	if err != nil {
 		return err
 	}
@@ -445,7 +450,7 @@ func (c *Client) Untag(itemKey, tagName string) error {
 }
 
 func (c *Client) Link(fromKey, toKey string) error {
-	request, err := http.NewRequest(http.MethodPut, c.url("/link/%s/to/%s", fromKey, toKey), nil)
+	request, err := retryablehttp.NewRequest(http.MethodPut, c.url("/link/%s/to/%s", fromKey, toKey), nil)
 	if err != nil {
 		return err
 	}
@@ -462,7 +467,7 @@ func (c *Client) Link(fromKey, toKey string) error {
 }
 
 func (c *Client) Unlink(fromKey, toKey string) error {
-	request, err := http.NewRequest(http.MethodDelete, c.url("/link/%s/to/%s", fromKey, toKey), nil)
+	request, err := retryablehttp.NewRequest(http.MethodDelete, c.url("/link/%s/to/%s", fromKey, toKey), nil)
 	if err != nil {
 		return err
 	}
