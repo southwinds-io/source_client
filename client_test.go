@@ -29,7 +29,7 @@ func TestAll(t *testing.T) {
 	// set a configuration: note the actual value is any object you want, in this case I am using ClientOptions{}
 	err = c.Save("OPT_1", "AAA", ClientOptions{
 		InsecureSkipVerify: false,
-		Timeout:            60,
+		Timeout:            60 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -59,7 +59,7 @@ func TestAll(t *testing.T) {
 	// set another item
 	err = c.Save("OPT_2", "AAA", ClientOptions{
 		InsecureSkipVerify: true,
-		Timeout:            120,
+		Timeout:            120 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -97,7 +97,7 @@ func TestItemsByType(t *testing.T) {
 	// ClientOptions{}
 	err := c.SetType("AAA", ClientOptions{
 		InsecureSkipVerify: true,
-		Timeout:            5 * time.Second,
+		Timeout:            35 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -105,15 +105,15 @@ func TestItemsByType(t *testing.T) {
 	// note the ? in the key name, it will automatically generate a unique time based sequence
 	err = c.Save("ITEM_?", "AAA", ClientOptions{
 		InsecureSkipVerify: false,
-		Timeout:            10,
+		Timeout:            40 * time.Second,
 	})
 	c.Save("ITEM_?", "AAA", ClientOptions{
 		InsecureSkipVerify: false,
-		Timeout:            15,
+		Timeout:            45 * time.Second,
 	})
 	c.Save("ITEM_?", "AAA", ClientOptions{
 		InsecureSkipVerify: true,
-		Timeout:            20,
+		Timeout:            50 * time.Second,
 	})
 	items, err := c.LoadItemsByType(func() any {
 		// this creates an empty configuration ready for unmarshalling

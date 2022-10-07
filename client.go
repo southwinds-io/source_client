@@ -30,6 +30,13 @@ type ClientOptions struct {
 	Timeout            time.Duration
 }
 
+func (o ClientOptions) Validate() error {
+	if o.Timeout < 30*time.Second {
+		return fmt.Errorf("timeout must be greater than 30 secs")
+	}
+	return nil
+}
+
 func defaultOptions() *ClientOptions {
 	return &ClientOptions{
 		InsecureSkipVerify: true,
@@ -104,7 +111,10 @@ func (c *Client) SetType(key string, obj any) error {
 }
 
 // Save the configuration item under the unique key using the validation defined by itemType
-func (c *Client) Save(key, itemType string, item any) error {
+func (c *Client) Save(key, itemType string, item Valid) error {
+	if err := item.Validate(); err != nil {
+		return err
+	}
 	if reflect.ValueOf(item).Kind() == reflect.Ptr {
 		return fmt.Errorf("iten argument passed to Save() must not be a pointer")
 	}

@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+type Valid interface {
+	Validate() error
+}
+
 // I the definition of an item
 type I struct {
 	Key     string    `json:"key"`
