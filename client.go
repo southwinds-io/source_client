@@ -49,7 +49,7 @@ type Client struct {
 	host, token string
 }
 
-func New(host, user, pwd string, opts *ClientOptions) Client {
+func New(host, user, pwd string, opts *ClientOptions) *Client {
 	if opts == nil {
 		opts = defaultOptions()
 	}
@@ -64,7 +64,7 @@ func New(host, user, pwd string, opts *ClientOptions) Client {
 		// set the client timeout period
 		Timeout: opts.Timeout,
 	}
-	return Client{ // the http client instance
+	return &Client{ // the http client instance
 		host:   host,
 		token:  basicToken(user, pwd),
 		Client: c,
@@ -145,7 +145,12 @@ func (c *Client) Save(key, itemType string, item Valid) error {
 		return reqErr
 	}
 	if resp.StatusCode > 299 {
-		return fmt.Errorf("cannot save item, source server responded with: %s", resp.Status)
+		var msg string
+		body, err := io.ReadAll(resp.Body)
+		if err == nil && len(body) > 0 {
+			msg = string(body[:])
+		}
+		return fmt.Errorf("cannot save item, source server responded with: %s, %s", resp.Status, msg)
 	}
 	return nil
 }
