@@ -116,7 +116,7 @@ func (c *Client) Save(key, itemType string, item Valid) error {
 		return err
 	}
 	if reflect.ValueOf(item).Kind() == reflect.Ptr {
-		return fmt.Errorf("iten argument passed to Save() must not be a pointer")
+		return fmt.Errorf("item argument passed to Save() must not be a pointer")
 	}
 	if len(itemType) == 0 {
 		return fmt.Errorf("item type is required to validate the item data")
@@ -301,7 +301,7 @@ func (c *Client) PopOldest(itemType string, prototype any) (any, error) {
 		return nil, err
 	}
 	if i == nil {
-		return i, nil
+		return nil, nil
 	}
 	return i.Typed(prototype)
 }
