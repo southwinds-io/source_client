@@ -498,6 +498,23 @@ func (c *Client) Unlink(fromKey, toKey string) error {
 	return nil
 }
 
+func (c *Client) Delete(key string) error {
+	request, err := retryablehttp.NewRequest(http.MethodDelete, c.url("/item/%s", key), nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Authorization", c.token)
+	request.Header.Set("User-Agent", UserAgent)
+	resp, reqErr := c.Do(request)
+	if reqErr != nil {
+		return reqErr
+	}
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("cannot delete item, source server responded with: %s", resp.Status)
+	}
+	return nil
+}
+
 func (c *Client) url(format string, args ...any) string {
 	v := fmt.Sprintf("%s%s", c.host, fmt.Sprintf(format, args...))
 	return v
